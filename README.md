@@ -12,7 +12,7 @@ A single-file, Notion-styled Bible trivia app for hosting quizzes on congregatio
 
 | Where | Keys |
 | --- | --- |
-| Anywhere | `1` `2` `3` switch pages |
+| Host Console & Database | `1` `2` `3` switch pages |
 | Host Console | `←` `→` navigate · `Space` reveal/hide answer · `O` toggle options · `T` start 30s timer · `P` present · `Esc` exit present |
 | Solo Quiz | `1`–`4` answer · `Enter` next question |
 
