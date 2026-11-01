@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bible Trivia — Host & Player</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+  <style>
+    /* ───────────── Design tokens (Notion-inspired) ───────────── */
+    :root {
+      --bg: #ffffff;
+      --bg-sidebar: #f7f7f5;
+      --bg-hover: rgba(55, 53, 47, 0.06);
+      --bg-active: rgba(55, 53, 47, 0.09);
+      --bg-callout: #f1f1ef;
+      --text: #37352f;
+      --text-2: rgba(55, 53, 47, 0.65);
+      --text-3: rgba(55, 53, 47, 0.45);
+      --border: rgba(55, 53, 47, 0.09);
+      --border-strong: rgba(55, 53, 47, 0.16);
+      --shadow: rgba(15, 15, 15, 0.05) 0 0 0 1px, rgba(15, 15, 15, 0.1) 0 3px 6px, rgba(15, 15, 15, 0.2) 0 9px 24px;
+      --accent: #2383e2;
+      --accent-hover: #0077d4;
+
+      --gray-bg: #f1f1ef;   --gray-tx: #787774;
+      --brown-bg: #f4eeee;  --brown-tx: #9f6b53;
+      --orange-bg: #fbecdd; --orange-tx: #d9730d;
+      --yellow-bg: #fbf3db; --yellow-tx: #cb912f;
+      --green-bg: #edf3ec;  --green-tx: #448361;
+      --blue-bg: #e7f3f8;   --blue-tx: #337ea9;
+      --purple-bg: #f6f3f9; --purple-tx: #9065b0;
+      --pink-bg: #faf1f5;   --pink-tx: #c14c8a;
+      --red-bg: #fdebec;    --red-tx: #d44c47;
+
+      --font: 'Inter', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      --serif: 'Lora', Georgia, 'Times New Roman', serif;
+      --mono: 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace;
+      --radius: 6px;
+    }
+    [data-theme="dark"] {
+      --bg: #191919;
+      --bg-sidebar: #202020;
+      --bg-hover: rgba(255, 255, 255, 0.055);
+      --bg-active: rgba(255, 255, 255, 0.09);
+      --bg-callout: #252525;
+      --text: rgba(255, 255, 255, 0.86);
+      --text-2: rgba(255, 255, 255, 0.55);
+      --text-3: rgba(255, 255, 255, 0.36);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.14);
+      --shadow: rgba(0, 0, 0, 0.3) 0 0 0 1px, rgba(0, 0, 0, 0.4) 0 3px 6px, rgba(0, 0, 0, 0.5) 0 9px 24px;
+
+      --gray-bg: #2f2f2f;   --gray-tx: #9b9b9b;
+      --brown-bg: #4a3228;  --brown-tx: #ba856f;
+      --orange-bg: #5c3b23; --orange-tx: #c77d48;
+      --yellow-bg: #56452f; --yellow-tx: #ca9849;
+      --green-bg: #243d30;  --green-tx: #529e72;
+      --blue-bg: #143a4e;   --blue-tx: #5e87c9;
+      --purple-bg: #3c2d49; --purple-tx: #9d68d3;
+      --pink-bg: #4e2c3c;   --pink-tx: #d15796;
+      --red-bg: #522e2a;    --red-tx: #df5452;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      transition: background .2s ease, color .2s ease;
+    }
+    button, input, select { font-family: inherit; font-size: inherit; color: inherit; }
+    button { cursor: pointer; background: none; border: none; padding: 0; }
+    ::selection { background: rgba(35, 131, 226, 0.28); }
+    .hidden { display: none !important; }
+
+    /* ───────────── App shell ───────────── */
+    .app { display: flex; min-height: 100vh; }
+
+    .sidebar {
+      width: 248px;
+      flex-shrink: 0;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 8px 6px;
+      z-index: 40;
+      transition: transform .2s ease;
+    }
+    .workspace {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 10px; border-radius: var(--radius);
+      font-weight: 600; font-size: 14px;
+    }
+    .workspace-icon {
+      width: 22px; height: 22px; border-radius: 4px;
+      background: var(--text); color: var(--bg);
+      display: grid; place-items: center; font-size: 12px; font-weight: 700;
+    }
+    .sidebar-section {
+      margin-top: 18px; padding: 0 10px 4px;
+      font-size: 12px; font-weight: 500; color: var(--text-3);
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%; text-align: left;
+      padding: 5px 10px; margin: 1px 0;
+      border-radius: var(--radius);
+      font-size: 14px; color: var(--text-2); font-weight: 500;
+      transition: background .1s ease;
+    }
+    .nav-item:hover { background: var(--bg-hover); }
+    .nav-item.active { background: var(--bg-active); color: var(--text); }
+    .nav-item .emoji { width: 20px; text-align: center; font-size: 15px; }
+    .nav-item .kbd { margin-left: auto; }
+    .sidebar-footer { margin-top: auto; padding: 8px 4px 2px; border-top: 1px solid var(--border); }
+
+    .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 30;
+      height: 45px; display: flex; align-items: center; gap: 8px;
+      padding: 0 12px;
+      background: color-mix(in srgb, var(--bg) 88%, transparent);
+      backdrop-filter: saturate(180%) blur(8px);
+      -webkit-backdrop-filter: saturate(180%) blur(8px);
+    }
+    .breadcrumb { display: flex; align-items: center; gap: 4px; font-size: 14px; color: var(--text-2); min-width: 0; }
+    .breadcrumb span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .breadcrumb .sep { color: var(--text-3); }
+    .breadcrumb .current { color: var(--text); }
+    .topbar-actions { margin-left: auto; display: flex; gap: 2px; }
+    .icon-btn {
+      height: 28px; min-width: 28px; padding: 0 8px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      border-radius: var(--radius); font-size: 14px; color: var(--text-2);
+    }
+    .icon-btn:hover { background: var(--bg-hover); color: var(--text); }
+    .menu-btn { display: none; }
+
+    .page { width: 100%; max-width: 900px; margin: 0 auto; padding: 0 56px 120px; }
+    .page.wide { max-width: 1120px; }
+
+    .cover {
+      height: 160px; width: 100%;
+      background:
+        radial-gradient(circle at 20% 30%, rgba(203, 145, 47, .35), transparent 55%),
+        radial-gradient(circle at 80% 70%, rgba(51, 126, 169, .30), transparent 55%),
+        linear-gradient(120deg, #f5efe3, #e9eef2);
+    }
+    [data-theme="dark"] .cover {
+      background:
+        radial-gradient(circle at 20% 30%, rgba(202, 152, 73, .25), transparent 55%),
+        radial-gradient(circle at 80% 70%, rgba(94, 135, 201, .25), transparent 55%),
+        linear-gradient(120deg, #2a2620, #1f252b);
+    }
+    .page-icon { font-size: 72px; line-height: 1; margin-top: -40px; margin-bottom: 10px; position: relative; user-select: none; }
+    .page-title { font-size: 40px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; margin: 0 0 6px; }
+    .page-desc { color: var(--text-2); font-size: 16px; margin: 0 0 20px; }
+
+    /* ───────────── Blocks ───────────── */
+    .props { margin: 4px 0 18px; border-bottom: 1px solid var(--border); padding-bottom: 14px; }
+    .prop { display: flex; align-items: center; min-height: 34px; gap: 8px; }
+    .prop-label {
+      width: 150px; flex-shrink: 0;
+      display: flex; align-items: center; gap: 6px;
+      color: var(--text-2); font-size: 14px;
+    }
+    .prop-value { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+    .select {
+      appearance: none; -webkit-appearance: none;
+      background: transparent;
+      border: none; border-radius: var(--radius);
+      padding: 4px 26px 4px 8px; font-size: 14px; color: var(--text);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.5l3 3 3-3' fill='none' stroke='%23999' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 8px center;
+      cursor: pointer; max-width: 100%;
+    }
+    .select:hover { background-color: var(--bg-hover); }
+    .select:focus { outline: none; box-shadow: 0 0 0 2px rgba(35,131,226,.35); }
+    .select option { background: var(--bg); color: var(--text); }
+
+    .tag {
+      display: inline-flex; align-items: center;
+      height: 22px; padding: 0 8px; border-radius: 4px;
+      font-size: 13px; font-weight: 500; white-space: nowrap;
+      background: var(--gray-bg); color: var(--gray-tx);
+    }
+    .c-gray   { background: var(--gray-bg);   color: var(--gray-tx); }
+    .c-brown  { background: var(--brown-bg);  color: var(--brown-tx); }
+    .c-orange { background: var(--orange-bg); color: var(--orange-tx); }
+    .c-yellow { background: var(--yellow-bg); color: var(--yellow-tx); }
+    .c-green  { background: var(--green-bg);  color: var(--green-tx); }
+    .c-blue   { background: var(--blue-bg);   color: var(--blue-tx); }
+    .c-purple { background: var(--purple-bg); color: var(--purple-tx); }
+    .c-pink   { background: var(--pink-bg);   color: var(--pink-tx); }
+    .c-red    { background: var(--red-bg);    color: var(--red-tx); }
+
+    .h2 { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; margin: 32px 0 8px; }
+    .h3 { font-size: 18px; font-weight: 600; margin: 24px 0 6px; display: flex; align-items: center; gap: 8px; }
+    .muted { color: var(--text-2); }
+    .small { font-size: 13px; }
+
+    .callout {
+      display: flex; gap: 12px; padding: 16px 16px 16px 12px;
+      border-radius: var(--radius); background: var(--bg-callout);
+    }
+    .callout .emoji { font-size: 20px; line-height: 1.3; }
+    .callout.green { background: var(--green-bg); }
+    .callout.red { background: var(--red-bg); }
+    .callout.blue { background: var(--blue-bg); }
+
+    .divider { height: 1px; background: var(--border); margin: 18px 0; border: 0; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      height: 32px; padding: 0 12px; border-radius: var(--radius);
+      font-size: 14px; font-weight: 500;
+      border: 1px solid var(--border-strong);
+      background: var(--bg); color: var(--text);
+      transition: background .1s ease, box-shadow .1s ease;
+      white-space: nowrap;
+    }
+    .btn:hover { background: var(--bg-hover); }
+    .btn:disabled { opacity: .4; cursor: default; background: var(--bg); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.primary:hover { background: var(--accent-hover); }
+    .btn.ghost { border-color: transparent; color: var(--text-2); }
+    .btn.ghost:hover { color: var(--text); }
+    .btn.sm { height: 26px; padding: 0 8px; font-size: 13px; }
+    .btn:focus-visible, .nav-item:focus-visible, .icon-btn:focus-visible, .option:focus-visible {
+      outline: none; box-shadow: 0 0 0 2px rgba(35,131,226,.45);
+    }
+
+    .kbd {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 18px; height: 18px; padding: 0 4px;
+      border-radius: 4px; border: 1px solid var(--border-strong);
+      font-family: var(--mono); font-size: 11px; color: var(--text-3);
+      background: var(--bg);
+    }
+
+    /* ───────────── Host mode ───────────── */
+    .timer {
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .timer-display {
+      font-family: var(--mono); font-size: 14px; font-weight: 600;
+      min-width: 54px; text-align: center; padding: 2px 8px; border-radius: 4px;
+      background: var(--gray-bg); color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .timer-display.running { background: var(--blue-bg); color: var(--blue-tx); }
+    .timer-display.warn { background: var(--orange-bg); color: var(--orange-tx); }
+    .timer-display.done { background: var(--red-bg); color: var(--red-tx); }
+
+    .gallery { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .team-card {
+      border: 1px solid var(--border-strong); border-radius: 8px;
+      padding: 12px 14px 12px; background: var(--bg);
+      transition: box-shadow .15s ease, transform .15s ease;
+    }
+    .team-card:hover { box-shadow: var(--shadow); }
+    .team-card.leader { border-color: var(--yellow-tx); }
+    .team-head { display: flex; align-items: center; gap: 6px; }
+    .team-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .team-name {
+      flex: 1; min-width: 0; border: none; background: transparent;
+      font-weight: 600; font-size: 14px; padding: 2px 4px; margin-left: -4px; border-radius: 4px;
+    }
+    .team-name:hover { background: var(--bg-hover); }
+    .team-name:focus { outline: none; background: var(--bg-hover); }
+    .team-crown { font-size: 13px; opacity: 0; transition: opacity .2s; }
+    .team-card.leader .team-crown { opacity: 1; }
+    .team-score { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+    .team-actions { display: flex; gap: 4px; }
+    .team-actions .btn { flex: 1; }
+
+    .q-block {
+      border: 1px solid var(--border-strong); border-radius: 10px;
+      padding: 28px 32px 22px; margin-top: 8px; background: var(--bg);
+    }
+    .q-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 18px; }
+    .q-meta .counter { margin-left: auto; font-size: 13px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+    .progress { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 22px; }
+    .progress > div { height: 100%; background: var(--accent); width: 0; transition: width .3s ease; }
+    .q-text {
+      font-family: var(--serif); font-weight: 600;
+      font-size: 28px; line-height: 1.35; letter-spacing: -0.005em;
+      margin: 0 0 22px;
+    }
+
+    .options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .option {
+      display: flex; align-items: center; gap: 12px;
+      width: 100%; text-align: left;
+      padding: 12px 14px; border-radius: 8px;
+      border: 1px solid var(--border-strong); background: var(--bg);
+      font-size: 16px; font-weight: 500;
+      transition: background .12s ease, border-color .12s ease;
+    }
+    .option .letter {
+      width: 26px; height: 26px; border-radius: 5px; flex-shrink: 0;
+      display: grid; place-items: center;
+      font-size: 12px; font-weight: 600;
+      background: var(--gray-bg); color: var(--gray-tx);
+    }
+    .option.correct { background: var(--green-bg); border-color: var(--green-tx); color: var(--text); }
+    .option.correct .letter { background: var(--green-tx); color: #fff; }
+    .option.wrong { background: var(--red-bg); border-color: var(--red-tx); }
+    .option.wrong .letter { background: var(--red-tx); color: #fff; }
+    .option.dim { opacity: .5; }
+    button.option:not(:disabled):hover { background: var(--bg-hover); }
+    button.option:disabled { cursor: default; }
+
+    .toggle-row {
+      display: flex; align-items: center; gap: 6px;
+      margin: 18px 0 0; padding: 4px 6px; margin-left: -6px; border-radius: var(--radius);
+      width: fit-content; font-size: 14px; color: var(--text-2); font-weight: 500;
+    }
+    .toggle-row:hover { background: var(--bg-hover); color: var(--text); }
+    .caret { display: inline-block; transition: transform .15s ease; font-size: 10px; }
+    .caret.open { transform: rotate(90deg); }
+
+    .answer { margin-top: 10px; animation: fadeIn .25s ease; }
+    .answer-title { font-weight: 600; font-size: 18px; margin: 2px 0 4px; }
+    .answer-ref {
+      display: inline-flex; align-items: center; gap: 4px; margin-top: 8px;
+      font-size: 13px; font-weight: 500; color: var(--green-tx);
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+
+    .q-footer {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      border-top: 1px solid var(--border); margin-top: 24px; padding-top: 16px;
+    }
+    .q-footer .spacer { flex: 1; }
+    .shortcuts { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; font-size: 12px; color: var(--text-3); }
+    .shortcuts span { display: inline-flex; align-items: center; gap: 5px; }
+
+    /* Presentation (fullscreen) mode */
+    body.presenting .sidebar,
+    body.presenting .topbar,
+    body.presenting .cover,
+    body.presenting .page-icon,
+    body.presenting .page-title,
+    body.presenting .page-desc,
+    body.presenting .props,
+    body.presenting #scoreboard-section,
+    body.presenting .shortcuts { display: none !important; }
+    body.presenting .page { max-width: 1200px; padding-top: 6vh; }
+    body.presenting .q-block { border: none; padding: 0; }
+    body.presenting .q-text { font-size: clamp(32px, 4vw, 52px); }
+    body.presenting .option { font-size: clamp(18px, 1.8vw, 26px); padding: 18px 20px; }
+    body.presenting .exit-present { display: inline-flex !important; }
+    .exit-present { position: fixed; top: 14px; right: 14px; display: none !important; z-index: 50; }
+
+    /* ───────────── Solo quiz ───────────── */
+    .score-pill { font-variant-numeric: tabular-nums; }
+    .options.stack { grid-template-columns: 1fr; }
+    .result-card { text-align: center; padding: 40px 24px; }
+    .result-score { font-size: 64px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; margin: 10px 0; }
+    .result-breakdown { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 26px 0; text-align: left; }
+    .result-breakdown .cell { border: 1px solid var(--border-strong); border-radius: 8px; padding: 10px 12px; }
+    .result-breakdown .cell .v { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    /* ───────────── Database ───────────── */
+    .db-toolbar {
+      display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+      border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 0;
+    }
+    .db-tab {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 8px; border-radius: var(--radius);
+      font-size: 14px; font-weight: 500; color: var(--text-2);
+      position: relative;
+    }
+    .db-tab:hover { background: var(--bg-hover); }
+    .db-tab.active { color: var(--text); }
+    .db-tab.active::after {
+      content: ''; position: absolute; left: 4px; right: 4px; bottom: -7px;
+      height: 2px; background: var(--text); border-radius: 1px;
+    }
+    .db-search {
+      margin-left: auto; display: flex; align-items: center; gap: 6px;
+      padding: 0 8px; height: 28px; border-radius: var(--radius);
+      color: var(--text-3);
+    }
+    .db-search:focus-within { background: var(--bg-hover); }
+    .db-search input {
+      border: none; background: transparent; outline: none;
+      width: 200px; font-size: 14px; color: var(--text);
+    }
+    .db-search input::placeholder { color: var(--text-3); }
+    .db-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 0; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      height: 24px; padding: 0 8px; border-radius: 12px;
+      border: 1px solid var(--border-strong);
+      font-size: 13px; color: var(--text-2); background: var(--bg);
+    }
+    .chip:hover { background: var(--bg-hover); }
+    .chip.on { background: var(--blue-bg); color: var(--blue-tx); border-color: transparent; }
+
+    .table-wrap { overflow-x: auto; border-top: 1px solid var(--border); }
+    table.db { width: 100%; border-collapse: collapse; font-size: 14px; }
+    table.db th {
+      text-align: left; font-weight: 500; color: var(--text-2); font-size: 13px;
+      padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    table.db th .ico { color: var(--text-3); margin-right: 4px; font-size: 12px; }
+    table.db td {
+      padding: 8px 10px; border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    table.db th + th, table.db td + td { border-left: 1px solid var(--border); }
+    table.db tbody tr:hover { background: var(--bg-hover); }
+    table.db td.num { color: var(--text-3); font-variant-numeric: tabular-nums; width: 40px; }
+    table.db td.q { min-width: 280px; font-weight: 500; }
+    table.db td.ans { min-width: 160px; }
+    table.db td.ref { color: var(--text-2); white-space: nowrap; font-size: 13px; }
+    .db-count { font-size: 13px; color: var(--text-3); padding: 10px 2px; }
+    .reveal-answers { cursor: pointer; }
+    .blurred { filter: blur(5px); transition: filter .15s; user-select: none; }
+    tr:hover .blurred { filter: blur(3px); }
+
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 6px 0 4px; }
+    .stat { border: 1px solid var(--border-strong); border-radius: 8px; padding: 14px 16px; }
+    .stat .label { font-size: 13px; color: var(--text-2); }
+    .stat .value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+
+    .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+    .chart-card { border: 1px solid var(--border-strong); border-radius: 8px; padding: 16px 18px; }
+    .chart-card h4 { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
+    .bar-row { display: grid; grid-template-columns: 150px 1fr 26px; align-items: center; gap: 10px; margin: 7px 0; font-size: 13px; }
+    .bar-row .lbl { color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar-track { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; }
+    .bar-row .n { text-align: right; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+    /* ───────────── Toast ───────────── */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--text); color: var(--bg);
+      padding: 8px 14px; border-radius: 6px; font-size: 14px; font-weight: 500;
+      box-shadow: var(--shadow); opacity: 0; pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease; z-index: 100;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .scrim { display: none; }
+
+    /* ───────────── Responsive ───────────── */
+    @media (max-width: 960px) {
+      .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .charts { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+      .sidebar { position: fixed; left: 0; top: 0; transform: translateX(-100%); }
+      .sidebar.open { transform: none; box-shadow: var(--shadow); }
+      .scrim.open { display: block; position: fixed; inset: 0; background: rgba(15,15,15,.3); z-index: 35; }
+      .menu-btn { display: inline-flex; }
+      .page { padding: 0 20px 100px; }
+      .page-title { font-size: 32px; }
+      .page-icon { font-size: 56px; margin-top: -30px; }
+      .cover { height: 110px; }
+      .prop { flex-direction: column; align-items: flex-start; gap: 2px; padding: 4px 0; }
+      .prop-label { width: auto; }
+      .q-block { padding: 20px 18px 16px; }
+      .q-text { font-size: 22px; }
+      .options { grid-template-columns: 1fr; }
+      .shortcuts { display: none; }
+      .result-breakdown { grid-template-columns: repeat(2, 1fr); }
+      .bar-row { grid-template-columns: 110px 1fr 22px; }
+      .db-search { margin-left: 0; width: 100%; }
+      .db-search input { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+
+    <!-- ───────────── Sidebar ───────────── -->
+    <aside class="sidebar" id="sidebar">
+      <div class="workspace">
+        <div class="workspace-icon">B</div>
+        <span>Bible Trivia</span>
+      </div>
+
+      <div class="sidebar-section">Pages</div>
+      <button class="nav-item active" data-view="host" onclick="switchView('host')">
+        <span class="emoji">🎤</span> Host Console <span class="kbd">1</span>
+      </button>
+      <button class="nav-item" data-view="player" onclick="switchView('player')">
+        <span class="emoji">🎯</span> Solo Quiz <span class="kbd">2</span>
+      </button>
+      <button class="nav-item" data-view="index" onclick="switchView('index')">
+        <span class="emoji">📚</span> Question Database <span class="kbd">3</span>
+      </button>
+
+      <div class="sidebar-section">Themes</div>
+      <div id="sidebar-themes"></div>
+
+      <div class="sidebar-footer">
+        <button class="nav-item" onclick="toggleTheme()">
+          <span class="emoji" id="theme-icon">🌙</span> <span id="theme-label">Dark mode</span>
+        </button>
+      </div>
+    </aside>
+    <div class="scrim" id="scrim" onclick="toggleSidebar(false)"></div>
+
+    <!-- ───────────── Main ───────────── -->
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" onclick="toggleSidebar()" aria-label="Open menu">☰</button>
+        <div class="breadcrumb">
+          <span>📖 Bible Trivia</span>
+          <span class="sep">/</span>
+          <span class="current" id="crumb">Host Console</span>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" id="present-btn" onclick="togglePresent()" title="Presentation mode (P)">⛶ <span class="small">Present</span></button>
+        </div>
+      </header>
+
+      <div class="cover"></div>
+
+      <!-- ═════════ VIEW 1: HOST CONSOLE ═════════ -->
+      <section id="view-host" class="page">
+        <div class="page-icon">🎤</div>
+        <h1 class="page-title">Host Console</h1>
+        <p class="page-desc">Read each question aloud, show options when needed, keep score, and reveal the answer with its scripture — without spoiling anything.</p>
+
+        <div class="props">
+          <div class="prop">
+            <div class="prop-label">◉ Theme</div>
+            <div class="prop-value">
+              <select id="host-theme-filter" class="select" onchange="filterHostQuestions()"></select>
+            </div>
+          </div>
+          <div class="prop">
+            <div class="prop-label">▤ Difficulty</div>
+            <div class="prop-value">
+              <select id="host-diff-filter" class="select" onchange="filterHostQuestions()"></select>
+            </div>
+          </div>
+          <div class="prop">
+            <div class="prop-label">◷ Timer</div>
+            <div class="prop-value timer">
+              <span id="timer-display" class="timer-display">0:30</span>
+              <button class="btn sm ghost" onclick="startTimer(30)">30s</button>
+              <button class="btn sm ghost" onclick="startTimer(15)">15s</button>
+              <button class="btn sm ghost" onclick="startTimer(60)">60s</button>
+              <button class="btn sm ghost" onclick="resetTimer()">Reset</button>
+            </div>
+          </div>
+          <div class="prop">
+            <div class="prop-label">♪ Sound</div>
+            <div class="prop-value">
+              <button class="btn sm ghost" id="sound-btn" onclick="toggleSound()">On</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="scoreboard-section">
+          <div class="h3" style="margin-top: 6px;">
+            <span>🏆 Scoreboard</span>
+            <button class="btn sm ghost" style="margin-left:auto" onclick="resetScores()">Reset scores</button>
+          </div>
+          <div class="gallery" id="scoreboard"></div>
+        </div>
+
+        <div class="h3">📝 Current question</div>
+        <div class="q-block">
+          <button class="btn sm exit-present" onclick="togglePresent()">Exit ✕</button>
+          <div class="q-meta">
+            <span class="tag" id="host-q-theme">Theme</span>
+            <span class="tag" id="host-q-diff">Level</span>
+            <span class="counter" id="host-q-index">1 / 50</span>
+          </div>
+          <div class="progress"><div id="host-progress"></div></div>
+
+          <h2 class="q-text" id="host-q-text">Loading…</h2>
+
+          <div id="host-options-container" class="options"></div>
+
+          <button class="toggle-row" id="toggle-options-btn" onclick="toggleHostOptions()">
+            <span class="caret open" id="options-caret">▶</span>
+            <span id="toggle-options-label">Hide options</span>
+          </button>
+
+          <button class="toggle-row" id="toggle-answer-btn" onclick="toggleHostAnswer()">
+            <span class="caret" id="answer-caret">▶</span>
+            <span id="toggle-answer-label">Reveal answer</span>
+          </button>
+          <div id="host-answer-box" class="answer hidden">
+            <div class="callout green">
+              <div class="emoji">✅</div>
+              <div>
+                <div class="small muted">Correct answer</div>
+                <div class="answer-title" id="host-answer-text"></div>
+                <div id="host-explanation-text"></div>
+                <div class="answer-ref">📖 <span id="host-bible-ref"></span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="q-footer">
+            <button class="btn" id="host-prev-btn" onclick="prevHostQuestion()">← Previous</button>
+            <button class="btn" id="host-reveal-btn" onclick="toggleHostAnswer()">💡 Reveal</button>
+            <div class="spacer"></div>
+            <button class="btn primary" id="host-next-btn" onclick="nextHostQuestion()">Next question →</button>
+          </div>
+        </div>
+
+        <div class="shortcuts">
+          <span><span class="kbd">←</span><span class="kbd">→</span> Navigate</span>
+          <span><span class="kbd">Space</span> Reveal</span>
+          <span><span class="kbd">O</span> Options</span>
+          <span><span class="kbd">T</span> Start 30s timer</span>
+          <span><span class="kbd">P</span> Present</span>
+        </div>
+      </section>
+
+      <!-- ═════════ VIEW 2: SOLO QUIZ ═════════ -->
+      <section id="view-player" class="page hidden">
+        <div class="page-icon">🎯</div>
+        <h1 class="page-title">Solo Quiz</h1>
+        <p class="page-desc">Test your own Bible knowledge one question at a time, with instant feedback and scripture references.</p>
+
+        <div class="props">
+          <div class="prop">
+            <div class="prop-label">◉ Progress</div>
+            <div class="prop-value"><span class="tag c-blue" id="player-progress">Question 1 of 50</span></div>
+          </div>
+          <div class="prop">
+            <div class="prop-label">★ Score</div>
+            <div class="prop-value"><span class="tag c-yellow score-pill" id="player-score-badge">0 / 0</span></div>
+          </div>
+          <div class="prop">
+            <div class="prop-label">↻ Order</div>
+            <div class="prop-value">
+              <button class="btn sm ghost" onclick="restartPlayer(false)">In order</button>
+              <button class="btn sm ghost" onclick="restartPlayer(true)">Shuffle &amp; restart</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="q-block" id="player-quiz-card">
+          <div class="q-meta">
+            <span class="tag" id="player-q-theme">Theme</span>
+            <span class="tag" id="player-q-diff">Level</span>
+            <span class="counter" id="player-counter">1 / 50</span>
+          </div>
+          <div class="progress"><div id="player-progress-bar"></div></div>
+          <h2 class="q-text" id="player-q-text">Loading…</h2>
+          <div id="player-options" class="options stack"></div>
+
+          <div id="player-feedback" class="callout hidden" style="margin-top:16px;">
+            <div class="emoji" id="player-feedback-emoji">✅</div>
+            <div>
+              <div class="answer-title" id="player-feedback-title"></div>
+              <div id="player-feedback-text"></div>
+              <div class="answer-ref" id="player-feedback-ref-wrap">📖 <span id="player-feedback-ref"></span></div>
+            </div>
+          </div>
+
+          <div class="q-footer">
+            <span class="small muted">Tip: press <span class="kbd">1</span>–<span class="kbd">4</span> to answer, <span class="kbd">Enter</span> to continue</span>
+            <div class="spacer"></div>
+            <button id="player-next-btn" class="btn primary hidden" onclick="nextPlayerQuestion()">Next question →</button>
+          </div>
+        </div>
+
+        <div class="q-block result-card hidden" id="player-result">
+          <div style="font-size:48px">🏁</div>
+          <div class="muted">Quiz complete</div>
+          <div class="result-score" id="result-score">0 / 50</div>
+          <div class="muted" id="result-msg"></div>
+          <div class="result-breakdown" id="result-breakdown"></div>
+          <button class="btn primary" onclick="restartPlayer(true)">Play again (shuffled)</button>
+          <button class="btn" onclick="restartPlayer(false)">Restart in order</button>
+        </div>
+      </section>
+
+      <!-- ═════════ VIEW 3: DATABASE ═════════ -->
+      <section id="view-index" class="page wide hidden">
+        <div class="page-icon">📚</div>
+        <h1 class="page-title">Question Database</h1>
+        <p class="page-desc">Every question, answer and scripture in one place — plus a breakdown of how the quiz is structured.</p>
+
+        <div class="stats" id="stats"></div>
+
+        <div class="h2">Insights</div>
+        <div class="charts">
+          <div class="chart-card">
+            <h4>Questions by theme</h4>
+            <div id="theme-chart"></div>
+          </div>
+          <div class="chart-card">
+            <h4>Questions by difficulty</h4>
+            <div id="diff-chart"></div>
+          </div>
+        </div>
+
+        <div class="h2">All questions</div>
+        <div class="db-toolbar">
+          <span class="db-tab active">▦ Table</span>
+          <button class="db-tab" id="answers-toggle" onclick="toggleAnswerBlur()">👁 Hide answers</button>
+          <label class="db-search">
+            🔍
+            <input type="text" id="index-search" oninput="renderMasterTable()" placeholder="Search questions, answers, scriptures…">
+          </label>
+        </div>
+        <div class="db-filters" id="db-filters"></div>
+        <div class="table-wrap">
+          <table class="db">
+            <thead>
+              <tr>
+                <th><span class="ico">#</span></th>
+                <th><span class="ico">Aa</span>Question</th>
+                <th><span class="ico">◉</span>Theme</th>
+                <th><span class="ico">▤</span>Level</th>
+                <th><span class="ico">✓</span>Answer</th>
+                <th><span class="ico">📖</span>Scripture</th>
+              </tr>
+            </thead>
+            <tbody id="master-table-body"></tbody>
+          </table>
+        </div>
+        <div class="db-count" id="db-count"></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ═════════════════════════ DATA ═════════════════════════
+    const triviaData = [
+      // Theme 1: Bible Characters
+      { id: 1, themeId: 1, theme: "Bible Characters", level: 1, levelLabel: "Beginner", q: "Who was the first man created by Jehovah?", options: ["Abel", "Adam", "Noah", "Seth"], answer: "Adam", exp: "Jehovah formed Adam from the dust of the ground and gave him life.", ref: "Genesis 2:7" },
+      { id: 2, themeId: 1, theme: "Bible Characters", level: 2, levelLabel: "Easy", q: "Who built an ark to preserve his family and animals during the Flood?", options: ["Abraham", "Moses", "Noah", "Enoch"], answer: "Noah", exp: "Jehovah instructed Noah to build an ark because a great Flood was coming.", ref: "Genesis 6:13-22" },
+      { id: 3, themeId: 1, theme: "Bible Characters", level: 3, levelLabel: "Intermediate", q: "Which Bible character interpreted Pharaoh's dreams about seven fat cows and seven thin cows?", options: ["Joseph", "Daniel", "Jacob", "Aaron"], answer: "Joseph", exp: "Joseph explained that the dreams foretold seven years of plenty followed by seven years of famine.", ref: "Genesis 41:14-32" },
+      { id: 4, themeId: 1, theme: "Bible Characters", level: 4, levelLabel: "Advanced", q: "Which Christian was described by the apostle Paul as 'the beloved physician'?", options: ["Luke", "Timothy", "Barnabas", "Titus"], answer: "Luke", exp: "Paul mentioned Luke in his letter to the Colossians and identified him as a physician.", ref: "Colossians 4:14" },
+      { id: 5, themeId: 1, theme: "Bible Characters", level: 5, levelLabel: "Super Tricky", q: "What was the name of the young man who fell asleep during Paul's lengthy talk and fell from a third-story window?", options: ["Tychicus", "Eutychus", "Onesimus", "Aristarchus"], answer: "Eutychus", exp: "Paul went down, embraced him, and reassured those present that he was alive. Paul continued talking until daybreak.", ref: "Acts 20:7-12" },
+
+      // Theme 2: Women of the Bible
+      { id: 6, themeId: 2, theme: "Women of the Bible", level: 1, levelLabel: "Beginner", q: "Who was the first woman created by Jehovah?", options: ["Sarah", "Rachel", "Eve", "Rebekah"], answer: "Eve", exp: "Jehovah created Eve from a rib taken from Adam.", ref: "Genesis 2:21-23" },
+      { id: 7, themeId: 2, theme: "Women of the Bible", level: 2, levelLabel: "Easy", q: "Who was Abraham's wife?", options: ["Sarah", "Leah", "Hannah", "Elizabeth"], answer: "Sarah", exp: "Jehovah changed her name from Sarai to Sarah and promised that she would have a son.", ref: "Genesis 17:15-19" },
+      { id: 8, themeId: 2, theme: "Women of the Bible", level: 3, levelLabel: "Intermediate", q: "In whose field did Ruth go to glean grain?", options: ["Boaz", "Elimelech", "Jesse", "Obed"], answer: "Boaz", exp: "Ruth went to glean behind the harvesters. Boaz noticed her and showed her kindness.", ref: "Ruth 2:2-8" },
+      { id: 9, themeId: 2, theme: "Women of the Bible", level: 4, levelLabel: "Advanced", q: "Which woman intervened when David was preparing to take revenge on Nabal and his household?", options: ["Abigail", "Bathsheba", "Michal", "Rahab"], answer: "Abigail", exp: "Abigail acted quickly, brought provisions to David, and spoke with wisdom, preventing bloodshed.", ref: "1 Samuel 25:18-35" },
+      { id: 10, themeId: 2, theme: "Women of the Bible", level: 5, levelLabel: "Super Tricky", q: "What was the name of the prophetess whom King Josiah's officials consulted after finding the book of the Law?", options: ["Huldah", "Deborah", "Miriam", "Anna"], answer: "Huldah", exp: "Hilkiah the priest and officials went to Huldah to inquire about Jehovah's words.", ref: "2 Kings 22:8-20" },
+
+      // Theme 3: Bible Geography
+      { id: 11, themeId: 3, theme: "Bible Geography", level: 1, levelLabel: "Beginner", q: "In which town was Jesus born?", options: ["Nazareth", "Bethlehem", "Jerusalem", "Jericho"], answer: "Bethlehem", exp: "Joseph and Mary travelled to Bethlehem, the city of David, where Jesus was born.", ref: "Luke 2:1-7" },
+      { id: 12, themeId: 3, theme: "Bible Geography", level: 2, levelLabel: "Easy", q: "What sea did the Israelites cross when escaping from Egypt?", options: ["The Red Sea", "The Sea of Galilee", "The Dead Sea", "The Mediterranean Sea"], answer: "The Red Sea", exp: "Jehovah miraculously opened a passage through the sea, allowing the Israelites to cross.", ref: "Exodus 14:21-22" },
+      { id: 13, themeId: 3, theme: "Bible Geography", level: 3, levelLabel: "Intermediate", q: "To which city was Jonah instructed to go to deliver Jehovah's message?", options: ["Babylon", "Tarshish", "Nineveh", "Damascus"], answer: "Nineveh", exp: "Jehovah instructed Jonah to go to Nineveh and announce judgment against that great city.", ref: "Jonah 1:1,2; 3:1-3" },
+      { id: 14, themeId: 3, theme: "Bible Geography", level: 4, levelLabel: "Advanced", q: "Through which city did Paul escape by being lowered in a basket through an opening in the city wall?", options: ["Ephesus", "Damascus", "Antioch", "Corinth"], answer: "Damascus", exp: "Paul's opponents watched the gates, so disciples helped him escape through an opening in the wall.", ref: "Acts 9:23-25" },
+      { id: 15, themeId: 3, theme: "Bible Geography", level: 5, levelLabel: "Super Tricky", q: "On which island did Paul and the other survivors of his shipwreck discover that they had landed?", options: ["Crete", "Cyprus", "Malta", "Patmos"], answer: "Malta", exp: "After reaching safety, they learned that the island was called Malta.", ref: "Acts 28:1-2" },
+
+      // Theme 4: Interesting Bible Events
+      { id: 16, themeId: 4, theme: "Interesting Events", level: 1, levelLabel: "Beginner", q: "What food did Jehovah provide for the Israelites in the wilderness?", options: ["Manna", "Figs", "Honeycombs", "Olives"], answer: "Manna", exp: "Jehovah provided manna each morning as food for the Israelites during their wilderness journey.", ref: "Exodus 16:13-15" },
+      { id: 17, themeId: 4, theme: "Interesting Events", level: 2, levelLabel: "Easy", q: "What happened to the walls of Jericho after the Israelites marched around the city as instructed?", options: ["They caught fire", "The walls collapsed", "They opened wide", "Nothing happened"], answer: "The walls collapsed", exp: "After marching around Jericho for seven days, they shouted and the walls fell.", ref: "Joshua 6:12-20" },
+      { id: 18, themeId: 4, theme: "Interesting Events", level: 3, levelLabel: "Intermediate", q: "On which mountain did Jehovah answer Elijah with fire from heaven?", options: ["Mount Sinai", "Mount Carmel", "Mount Nebo", "Mount Olives"], answer: "Mount Carmel", exp: "Jehovah answered Elijah's prayer by sending fire that consumed the offering.", ref: "1 Kings 18:19-39" },
+      { id: 19, themeId: 4, theme: "Interesting Events", level: 4, levelLabel: "Advanced", q: "What happened when Moses stretched out his hand over the Red Sea?", options: ["Jehovah caused the sea to divide", "A storm arose", "Boats appeared", "Water turned into wine"], answer: "Jehovah caused the sea to divide", exp: "The Israelites crossed safely between the waters on dry ground.", ref: "Exodus 14:21-29" },
+      { id: 20, themeId: 4, theme: "Interesting Events", level: 5, levelLabel: "Super Tricky", q: "What unusual thing happened to an iron axe head that had fallen into the Jordan River?", options: ["It turned to gold", "It floated to the surface", "It dissolved in water", "It multiplied into two"], answer: "It floated to the surface", exp: "Elisha threw a piece of wood into the water, and the iron axe head floated.", ref: "2 Kings 6:1-7" },
+
+      // Theme 5: Jesus' Life & Ministry
+      { id: 21, themeId: 5, theme: "Jesus' Life & Ministry", level: 1, levelLabel: "Beginner", q: "How many apostles did Jesus choose?", options: ["7", "10", "12", "70"], answer: "12", exp: "Jesus selected 12 men to be his apostles after spending time in prayer.", ref: "Luke 6:12-16" },
+      { id: 22, themeId: 5, theme: "Jesus' Life & Ministry", level: 2, levelLabel: "Easy", q: "What was Jesus' first recorded miracle?", options: ["Walking on water", "Turning water into wine", "Healing a blind man", "Feeding 5,000"], answer: "Turning water into wine", exp: "Jesus performed this miracle at a marriage feast in Cana of Galilee.", ref: "John 2:1-11" },
+      { id: 23, themeId: 5, theme: "Jesus' Life & Ministry", level: 3, levelLabel: "Intermediate", q: "What two types of food did Jesus use to feed approximately 5,000 men?", options: ["Five barley loaves and two small fish", "Seven loaves and three birds", "Manna and quail", "Olives and figs"], answer: "Five barley loaves and two small fish", exp: "Jesus gave thanks and distributed the food until everyone was satisfied.", ref: "John 6:5-13" },
+      { id: 24, themeId: 5, theme: "Jesus' Life & Ministry", level: 4, levelLabel: "Advanced", q: "What was the name of the short man who climbed a tree to get a better view of Jesus?", options: ["Nicodemus", "Zacchaeus", "Bartimaeus", "Lazarus"], answer: "Zacchaeus", exp: "Zacchaeus was a chief tax collector who climbed a sycamore tree to see Jesus.", ref: "Luke 19:1-6" },
+      { id: 25, themeId: 5, theme: "Jesus' Life & Ministry", level: 5, levelLabel: "Super Tricky", q: "When Jesus instructed Peter to catch a fish to pay the temple tax, what kind of coin did Peter find in its mouth?", options: ["A denarius", "A stater coin", "A shekel", "A drachma"], answer: "A stater coin", exp: "Peter used the stater coin to pay the temple tax for both Jesus and himself.", ref: "Matthew 17:24-27" },
+
+      // Theme 6: Kings and Rulers
+      { id: 26, themeId: 6, theme: "Kings and Rulers", level: 1, levelLabel: "Beginner", q: "Who was the first king of Israel?", options: ["David", "Saul", "Solomon", "Samuel"], answer: "Saul", exp: "The Israelites requested a king, and Jehovah appointed Saul, the son of Kish.", ref: "1 Samuel 10:20-24" },
+      { id: 27, themeId: 6, theme: "Kings and Rulers", level: 2, levelLabel: "Easy", q: "Which king succeeded Saul as king of Israel?", options: ["Solomon", "David", "Hezekiah", "Rehoboam"], answer: "David", exp: "David was anointed king over all Israel after Saul's death.", ref: "2 Samuel 5:1-5" },
+      { id: 28, themeId: 6, theme: "Kings and Rulers", level: 3, levelLabel: "Intermediate", q: "Which Israelite king was famous for his wisdom and built Jehovah's temple in Jerusalem?", options: ["Solomon", "Josiah", "Jehoshaphat", "Asa"], answer: "Solomon", exp: "Solomon received wisdom from Jehovah and supervised temple construction.", ref: "1 Kings 3:5-12; 6:1" },
+      { id: 29, themeId: 6, theme: "Kings and Rulers", level: 4, levelLabel: "Advanced", q: "How old was King Josiah when he began ruling over Judah?", options: ["8 years old", "12 years old", "18 years old", "20 years old"], answer: "8 years old", exp: "Josiah became king at age eight following the death of his father Amon.", ref: "2 Kings 22:1" },
+      { id: 30, themeId: 6, theme: "Kings and Rulers", level: 5, levelLabel: "Super Tricky", q: "Which Babylonian king released Jehoiachin from prison after he had spent 37 years in exile?", options: ["Nebuchadnezzar", "Evil-merodach", "Belshazzar", "Nabonidus"], answer: "Evil-merodach", exp: "In his ascension year, Evil-merodach released Jehoiachin and gave him a position of favor.", ref: "2 Kings 25:27-30" },
+
+      // Theme 7: Bible Prophecies
+      { id: 31, themeId: 7, theme: "Bible Prophecies", level: 1, levelLabel: "Beginner", q: "Which prophet foretold that the Messiah would be born in Bethlehem?", options: ["Isaiah", "Micah", "Jeremiah", "Hosea"], answer: "Micah", exp: "Micah foretold that the future ruler in Israel would come from Bethlehem Ephrathah.", ref: "Micah 5:2" },
+      { id: 32, themeId: 7, theme: "Bible Prophecies", level: 2, levelLabel: "Easy", q: "According to prophecy, what animal would the Messiah ride when entering Jerusalem?", options: ["A horse", "A donkey, specifically a colt", "A camel", "A mule"], answer: "A donkey, specifically a colt", exp: "Zechariah foretold that the king would come humbly, riding on a donkey.", ref: "Zechariah 9:9; Matthew 21:1-9" },
+      { id: 33, themeId: 7, theme: "Bible Prophecies", level: 3, levelLabel: "Intermediate", q: "For how many pieces of silver was Jesus betrayed?", options: ["20 pieces", "30 pieces", "50 pieces", "100 pieces"], answer: "30 pieces", exp: "Judas agreed to betray Jesus for 30 silver pieces, fulfilling Zechariah's prophecy.", ref: "Zechariah 11:12; Matthew 26:14-16" },
+      { id: 34, themeId: 7, theme: "Bible Prophecies", level: 4, levelLabel: "Advanced", q: "What did the soldiers do with Jesus' garments while he was on the stake?", options: ["They burned them", "They divided his outer garments and cast lots for his inner garment", "They returned them to his family", "They tore them to pieces"], answer: "They divided his outer garments and cast lots for his inner garment", exp: "This fulfilled the prophecy recorded at Psalm 22:18.", ref: "Psalm 22:18; John 19:23-24" },
+      { id: 35, themeId: 7, theme: "Bible Prophecies", level: 5, levelLabel: "Super Tricky", q: "Which specific part of Jesus' body was prophesied not to be broken during his death?", options: ["None of his bones", "His hands", "His feet", "His head"], answer: "None of his bones", exp: "Psalm 34:20 foretold that none of his bones would be broken, fulfilled in John 19.", ref: "Psalm 34:20; John 19:31-36" },
+
+      // Theme 8: Interesting Bible Details
+      { id: 36, themeId: 8, theme: "Interesting Details", level: 1, levelLabel: "Beginner", q: "How many days and nights did it rain during the beginning of the Flood?", options: ["7 days and 7 nights", "40 days and 40 nights", "100 days", "1 year"], answer: "40 days and 40 nights", exp: "The rain poured down upon the earth for 40 days and 40 nights.", ref: "Genesis 7:11-12" },
+      { id: 37, themeId: 8, theme: "Interesting Details", level: 2, levelLabel: "Easy", q: "How old was Noah when the Floodwaters came upon the earth?", options: ["500 years old", "600 years old", "700 years old", "950 years old"], answer: "600 years old", exp: "The Bible specifically records Noah's age as 600 when the Flood began.", ref: "Genesis 7:6" },
+      { id: 38, themeId: 8, theme: "Interesting Details", level: 3, levelLabel: "Intermediate", q: "How many baskets of leftover pieces were collected after Jesus fed the 5,000?", options: ["7 baskets", "12 baskets", "3 baskets", "24 baskets"], answer: "12 baskets", exp: "Even after everyone had eaten, 12 baskets of leftover pieces were gathered.", ref: "John 6:10-13" },
+      { id: 39, themeId: 8, theme: "Interesting Details", level: 4, levelLabel: "Advanced", q: "How old was Methuselah when he died?", options: ["930 years old", "969 years old", "950 years old", "999 years old"], answer: "969 years old", exp: "Methuselah lived longer than anyone else recorded in the Bible.", ref: "Genesis 5:25-27" },
+      { id: 40, themeId: 8, theme: "Interesting Details", level: 5, levelLabel: "Super Tricky", q: "According to Acts 27:37, exactly how many people were aboard the ship carrying Paul when it encountered the storm?", options: ["120 people", "276 people", "300 people", "500 people"], answer: "276 people", exp: "The account explicitly records that 276 souls were aboard.", ref: "Acts 27:33-37" },
+
+      // Theme 9: Christian Qualities
+      { id: 41, themeId: 9, theme: "Christian Qualities", level: 1, levelLabel: "Beginner", q: "Which quality did Abel demonstrate through his acceptable offering to Jehovah?", options: ["Courage", "Faith", "Patience", "Wisdom"], answer: "Faith", exp: "Abel demonstrated faith by offering Jehovah an acceptable sacrifice.", ref: "Hebrews 11:4" },
+      { id: 42, themeId: 9, theme: "Christian Qualities", level: 2, levelLabel: "Easy", q: "Which woman showed remarkable loyalty by refusing to leave her mother-in-law, Naomi?", options: ["Ruth", "Orpah", "Hannah", "Leah"], answer: "Ruth", exp: "Ruth expressed determination to remain with Naomi and worship Naomi's God.", ref: "Ruth 1:14-17" },
+      { id: 43, themeId: 9, theme: "Christian Qualities", level: 3, levelLabel: "Intermediate", q: "Which Bible woman demonstrated courage by approaching a king without first being summoned?", options: ["Esther", "Vashti", "Miriam", "Jezebel"], answer: "Esther", exp: "Esther approached King Ahasuerus to plead for her people despite high personal risk.", ref: "Esther 4:11-16; 5:1-3" },
+      { id: 44, themeId: 9, theme: "Christian Qualities", level: 4, levelLabel: "Advanced", q: "What practical action did Jesus perform to teach his disciples humility?", options: ["He washed their feet", "He built them a shelter", "He fasted for them", "He gave them gifts"], answer: "He washed their feet", exp: "Jesus performed this humble service to teach his disciples mutual humility.", ref: "John 13:3-15" },
+      { id: 45, themeId: 9, theme: "Christian Qualities", level: 5, levelLabel: "Super Tricky", q: "Which Roman army officer was remembered for his prayers and gifts of mercy?", options: ["Cornelius", "Julius", "Claudius Lysias", "Sergius Paulus"], answer: "Cornelius", exp: "Cornelius was a devout man whose prayers and mercy gifts were noticed by God.", ref: "Acts 10:1-4" },
+
+      // Theme 10: Animals & Nature
+      { id: 46, themeId: 10, theme: "Animals & Nature", level: 1, levelLabel: "Beginner", q: "Which bird did Noah send out of the ark that eventually returned with a fresh olive leaf?", options: ["A raven", "A dove", "An eagle", "A sparrow"], answer: "A dove", exp: "The fresh olive leaf indicated floodwaters had receded.", ref: "Genesis 8:8-11" },
+      { id: 47, themeId: 10, theme: "Animals & Nature", level: 2, levelLabel: "Easy", q: "Which birds did Jehovah use to provide food for Elijah near the torrent valley of Cherith?", options: ["Ravens", "Doves", "Quails", "Pigeons"], answer: "Ravens", exp: "Ravens brought Elijah bread and meat morning and evening.", ref: "1 Kings 17:2-6" },
+      { id: 48, themeId: 10, theme: "Animals & Nature", level: 3, levelLabel: "Intermediate", q: "What type of insects did John the Baptist eat in the wilderness?", options: ["Ants", "Locusts", "Grasshoppers", "Crickets"], answer: "Locusts", exp: "John lived simply in the wilderness, eating locusts and wild honey.", ref: "Matthew 3:1-4" },
+      { id: 49, themeId: 10, theme: "Animals & Nature", level: 4, levelLabel: "Advanced", q: "Which animal spoke to Balaam?", options: ["His donkey", "A snake", "A camel", "A sheep"], answer: "His donkey", exp: "Jehovah opened the donkey's mouth to question Balaam's harsh treatment.", ref: "Numbers 22:21-30" },
+      { id: 50, themeId: 10, theme: "Animals & Nature", level: 5, levelLabel: "Super Tricky", q: "What did Samson discover inside the carcass of the lion he had previously encountered?", options: ["A golden coin", "A swarm of bees and honey", "A scroll", "An olive branch"], answer: "A swarm of bees and honey", exp: "Samson returned to find bees had formed a swarm and honey inside the lion carcass.", ref: "Judges 14:5-9" }
+    ];
+
+    const THEMES = [
+      { id: 1,  name: "Bible Characters",       emoji: "👤", color: "blue" },
+      { id: 2,  name: "Women of the Bible",     emoji: "👑", color: "pink" },
+      { id: 3,  name: "Bible Geography",        emoji: "🗺️", color: "green" },
+      { id: 4,  name: "Interesting Events",     emoji: "⚡", color: "orange" },
+      { id: 5,  name: "Jesus' Life & Ministry", emoji: "🕊️", color: "purple" },
+      { id: 6,  name: "Kings and Rulers",       emoji: "🏛️", color: "brown" },
+      { id: 7,  name: "Bible Prophecies",       emoji: "📜", color: "yellow" },
+      { id: 8,  name: "Interesting Details",    emoji: "🔎", color: "gray" },
+      { id: 9,  name: "Christian Qualities",    emoji: "💛", color: "red" },
+      { id: 10, name: "Animals & Nature",       emoji: "🌿", color: "green" }
+    ];
+    const LEVELS = [
+      { id: 1, name: "Beginner",     color: "green" },
+      { id: 2, name: "Easy",         color: "blue" },
+      { id: 3, name: "Intermediate", color: "yellow" },
+      { id: 4, name: "Advanced",     color: "orange" },
+      { id: 5, name: "Super Tricky", color: "purple" }
+    ];
+    const TEAM_COLORS = ["blue", "orange", "green", "purple"];
+    const LETTERS = ["A", "B", "C", "D"];
+
+    const themeOf = id => THEMES.find(t => t.id === id);
+    const levelOf = id => LEVELS.find(l => l.id === id);
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    // ═════════════════════════ STATE ═════════════════════════
+    let currentView = 'host';
+    let currentHostIndex = 0;
+    let hostFilteredList = [...triviaData];
+    let hostOptionsVisible = true;
+    let hostAnswerVisible = false;
+    let timerInterval = null;
+    let soundOn = true;
+
+    let playerOrder = [...triviaData];
+    let currentPlayerIndex = 0;
+    let playerScores = { correct: 0, total: 0, byLevel: {} };
+    let playerAnswered = false;
+
+    let teams = [
+      { name: "Team 1", score: 0 }, { name: "Team 2", score: 0 },
+      { name: "Team 3", score: 0 }, { name: "Team 4", score: 0 }
+    ];
+
+    let dbThemeFilter = 'all';
+    let answersBlurred = false;
+
+    // ═════════════════════════ PERSISTENCE ═════════════════════════
+    function save() {
+      try { localStorage.setItem('bt-teams', JSON.stringify(teams)); } catch (e) {}
+    }
+    function load() {
+      try {
+        const t = JSON.parse(localStorage.getItem('bt-teams'));
+        if (Array.isArray(t) && t.length === 4) teams = t;
+        const theme = localStorage.getItem('bt-theme');
+        if (theme) applyTheme(theme);
+        else if (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) applyTheme('dark');
+      } catch (e) {}
+    }
+
+    // ═════════════════════════ UI HELPERS ═════════════════════════
+    function applyTheme(mode) {
+      document.documentElement.setAttribute('data-theme', mode);
+      $('theme-icon').textContent = mode === 'dark' ? '☀️' : '🌙';
+      $('theme-label').textContent = mode === 'dark' ? 'Light mode' : 'Dark mode';
+    }
+    function toggleTheme() {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      try { localStorage.setItem('bt-theme', next); } catch (e) {}
+    }
+    function toggleSidebar(force) {
+      const open = typeof force === 'boolean' ? force : !$('sidebar').classList.contains('open');
+      $('sidebar').classList.toggle('open', open);
+      $('scrim').classList.toggle('open', open);
+    }
+    let toastTimer;
+    function toast(msg) {
+      const el = $('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 1600);
+    }
+
+    // ═════════════════════════ AUDIO ═════════════════════════
+    let audioCtx;
+    function playChime(type) {
+      if (!soundOn) return;
+      try {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = audioCtx;
+        const tone = (freq, start, dur, vol, wave = 'sine') => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = wave;
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+          gain.gain.setValueAtTime(0.0001, ctx.currentTime + start);
+          gain.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + start + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + dur);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + start);
+          osc.stop(ctx.currentTime + start + dur + 0.02);
+        };
+        if (type === 'reveal') { tone(523.25, 0, .35, .18); tone(659.25, .1, .4, .16); tone(783.99, .2, .5, .14); }
+        else if (type === 'tick') { tone(880, 0, .06, .05, 'triangle'); }
+        else if (type === 'done') { tone(392, 0, .5, .2, 'triangle'); tone(523.25, .18, .6, .18, 'triangle'); }
+        else if (type === 'wrong') { tone(220, 0, .3, .12, 'triangle'); }
+      } catch (e) { /* audio unavailable */ }
+    }
+    function toggleSound() {
+      soundOn = !soundOn;
+      $('sound-btn').textContent = soundOn ? 'On' : 'Off';
+    }
+
+    // ═════════════════════════ NAVIGATION ═════════════════════════
+    const VIEW_NAMES = { host: 'Host Console', player: 'Solo Quiz', index: 'Question Database' };
+    function switchView(view) {
+      currentView = view;
+      ['host', 'player', 'index'].forEach(v => $(`view-${v}`).classList.toggle('hidden', v !== view));
+      document.querySelectorAll('.nav-item[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+      $('crumb').textContent = VIEW_NAMES[view];
+      $('present-btn').classList.toggle('hidden', view !== 'host');
+      toggleSidebar(false);
+      window.scrollTo({ top: 0 });
+    }
+
+    function renderSidebarThemes() {
+      $('sidebar-themes').innerHTML = THEMES.map(t =>
+        `<button class="nav-item" onclick="jumpToTheme(${t.id})"><span class="emoji">${t.emoji}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(t.name)}</span></button>`
+      ).join('');
+    }
+    function jumpToTheme(id) {
+      switchView('host');
+      $('host-theme-filter').value = String(id);
+      filterHostQuestions();
+    }
+
+    // ═════════════════════════ HOST CONSOLE ═════════════════════════
+    function populateFilters() {
+      $('host-theme-filter').innerHTML =
+        `<option value="all">All themes · ${triviaData.length} questions</option>` +
+        THEMES.map(t => `<option value="${t.id}">${t.emoji}  ${esc(t.name)}</option>`).join('');
+      $('host-diff-filter').innerHTML =
+        `<option value="all">All levels</option>` +
+        LEVELS.map(l => `<option value="${l.id}">Level ${l.id} · ${l.name}</option>`).join('');
+    }
+
+    function filterHostQuestions() {
+      const themeVal = $('host-theme-filter').value;
+      const diffVal = $('host-diff-filter').value;
+      hostFilteredList = triviaData.filter(item =>
+        (themeVal === 'all' || item.themeId == themeVal) &&
+        (diffVal === 'all' || item.level == diffVal)
+      );
+      currentHostIndex = 0;
+      renderHostQuestion();
+      resetTimer();
+    }
+
+    function themeTag(el, item) {
+      const t = themeOf(item.themeId);
+      el.className = `tag c-${t.color}`;
+      el.textContent = `${t.emoji} ${t.name}`;
+    }
+    function levelTag(el, item) {
+      const l = levelOf(item.level);
+      el.className = `tag c-${l.color}`;
+      el.textContent = `Level ${l.id} · ${l.name}`;
+    }
+
+    function renderHostQuestion() {
+      const total = hostFilteredList.length;
+      const hasQ = total > 0;
+      ['host-options-container', 'toggle-options-btn', 'toggle-answer-btn'].forEach(id => $(id).classList.toggle('hidden', !hasQ));
+      $('host-answer-box').classList.add('hidden');
+      hostAnswerVisible = false;
+      updateAnswerToggle();
+
+      if (!hasQ) {
+        $('host-q-text').textContent = 'No questions match these filters.';
+        $('host-q-index').textContent = '0 / 0';
+        $('host-progress').style.width = '0';
+        $('host-q-theme').className = 'tag hidden';
+        $('host-q-diff').className = 'tag hidden';
+        $('host-prev-btn').disabled = true;
+        $('host-next-btn').disabled = true;
+        $('host-reveal-btn').disabled = true;
+        return;
+      }
+
+      const q = hostFilteredList[currentHostIndex];
+      themeTag($('host-q-theme'), q);
+      levelTag($('host-q-diff'), q);
+      $('host-q-index').textContent = `${currentHostIndex + 1} / ${total}`;
+      $('host-progress').style.width = `${((currentHostIndex + 1) / total) * 100}%`;
+      $('host-q-text').textContent = q.q;
+
+      $('host-options-container').innerHTML = q.options.map((opt, i) =>
+        `<div class="option" data-opt="${i}"><span class="letter">${LETTERS[i]}</span><span>${esc(opt)}</span></div>`
+      ).join('');
+      $('host-options-container').classList.toggle('hidden', !hostOptionsVisible);
+
+      $('host-answer-text').textContent = q.answer;
+      $('host-explanation-text').textContent = q.exp;
+      $('host-bible-ref').textContent = q.ref;
+
+      $('host-prev-btn').disabled = currentHostIndex === 0;
+      $('host-reveal-btn').disabled = false;
+      const isLast = currentHostIndex === total - 1;
+      $('host-next-btn').disabled = false;
+      $('host-next-btn').textContent = isLast ? 'Finish 🏁' : 'Next question →';
+    }
+
+    function toggleHostOptions() {
+      if (!hostFilteredList.length) return;
+      hostOptionsVisible = !hostOptionsVisible;
+      $('host-options-container').classList.toggle('hidden', !hostOptionsVisible);
+      $('options-caret').classList.toggle('open', hostOptionsVisible);
+      $('toggle-options-label').textContent = hostOptionsVisible ? 'Hide options' : 'Show options';
+    }
+
+    function updateAnswerToggle() {
+      $('answer-caret').classList.toggle('open', hostAnswerVisible);
+      $('toggle-answer-label').textContent = hostAnswerVisible ? 'Hide answer' : 'Reveal answer';
+      $('host-reveal-btn').textContent = hostAnswerVisible ? '🙈 Hide' : '💡 Reveal';
+    }
+
+    function toggleHostAnswer() {
+      if (!hostFilteredList.length) return;
+      hostAnswerVisible = !hostAnswerVisible;
+      const q = hostFilteredList[currentHostIndex];
+      $('host-answer-box').classList.toggle('hidden', !hostAnswerVisible);
+      document.querySelectorAll('#host-options-container .option').forEach(el => {
+        const isCorrect = q.options[+el.dataset.opt] === q.answer;
+        el.classList.toggle('correct', hostAnswerVisible && isCorrect);
+        el.classList.toggle('dim', hostAnswerVisible && !isCorrect);
+      });
+      updateAnswerToggle();
+      if (hostAnswerVisible) { playChime('reveal'); clearInterval(timerInterval); }
+    }
+
+    function nextHostQuestion() {
+      if (currentHostIndex < hostFilteredList.length - 1) {
+        currentHostIndex++;
+        renderHostQuestion();
+        resetTimer();
+      } else if (hostFilteredList.length) {
+        const leader = [...teams].sort((a, b) => b.score - a.score)[0];
+        toast(leader.score > 0 ? `🏁 Round complete — ${leader.name} leads with ${leader.score}` : '🏁 Round complete');
+        playChime('done');
+      }
+    }
+    function prevHostQuestion() {
+      if (currentHostIndex > 0) {
+        currentHostIndex--;
+        renderHostQuestion();
+        resetTimer();
+      }
+    }
+
+    // ═════════════════════════ SCOREBOARD ═════════════════════════
+    function renderScoreboard() {
+      $('scoreboard').innerHTML = teams.map((t, i) => `
+        <div class="team-card" id="team-card-${i}">
+          <div class="team-head">
+            <span class="team-dot" style="background: var(--${TEAM_COLORS[i]}-tx)"></span>
+            <input class="team-name" value="${esc(t.name)}" aria-label="Team name" oninput="renameTeam(${i}, this.value)">
+            <span class="team-crown" title="Leading">👑</span>
+          </div>
+          <div class="team-score" id="team-score-${i}">${t.score}</div>
+          <div class="team-actions">
+            <button class="btn sm" onclick="changeScore(${i}, -1)" aria-label="Subtract a point">−</button>
+            <button class="btn sm" onclick="changeScore(${i}, 1)" aria-label="Add a point">+1</button>
+          </div>
+        </div>`).join('');
+      updateLeader();
+    }
+    function updateLeader() {
+      const max = Math.max(...teams.map(t => t.score));
+      const leaders = teams.filter(t => t.score === max).length;
+      teams.forEach((t, i) => {
+        $(`team-card-${i}`).classList.toggle('leader', max > 0 && t.score === max && leaders === 1);
+      });
+    }
+    function renameTeam(i, name) { teams[i].name = name || `Team ${i + 1}`; save(); }
+    function changeScore(i, delta) {
+      teams[i].score += delta;
+      $(`team-score-${i}`).textContent = teams[i].score;
+      updateLeader();
+      save();
+      if (delta > 0) playChime('tick');
+    }
+    function resetScores() {
+      if (!confirm('Reset all team scores to 0?')) return;
+      teams.forEach(t => t.score = 0);
+      renderScoreboard();
+      save();
+      toast('Scores reset');
+    }
+
+    // ═════════════════════════ TIMER ═════════════════════════
+    const fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    function startTimer(seconds) {
+      clearInterval(timerInterval);
+      let left = seconds;
+      const d = $('timer-display');
+      d.textContent = fmt(left);
+      d.className = 'timer-display running';
+      timerInterval = setInterval(() => {
+        left--;
+        d.textContent = fmt(Math.max(left, 0));
+        if (left <= 5 && left > 0) { d.className = 'timer-display warn'; playChime('tick'); }
+        if (left <= 0) {
+          clearInterval(timerInterval);
+          d.textContent = "Time!";
+          d.className = 'timer-display done';
+          playChime('done');
+        }
+      }, 1000);
+    }
+    function resetTimer() {
+      clearInterval(timerInterval);
+      $('timer-display').textContent = '0:30';
+      $('timer-display').className = 'timer-display';
+    }
+
+    // ═════════════════════════ PRESENT MODE ═════════════════════════
+    function togglePresent() {
+      const on = !document.body.classList.contains('presenting');
+      document.body.classList.toggle('presenting', on);
+      try {
+        if (on && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+        else if (!on && document.fullscreenElement) document.exitFullscreen();
+      } catch (e) {}
+      window.scrollTo({ top: 0 });
+    }
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement) document.body.classList.remove('presenting');
+    });
+
+    // ═════════════════════════ SOLO QUIZ ═════════════════════════
+    function shuffle(arr) {
+      const a = [...arr];
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+    function restartPlayer(shuffled) {
+      playerOrder = shuffled ? shuffle(triviaData) : [...triviaData];
+      currentPlayerIndex = 0;
+      playerScores = { correct: 0, total: 0, byLevel: {} };
+      $('player-quiz-card').classList.remove('hidden');
+      $('player-result').classList.add('hidden');
+      renderPlayerQuestion();
+      updatePlayerScore();
+    }
+    function updatePlayerScore() {
+      $('player-score-badge').textContent = `${playerScores.correct} / ${playerScores.total}`;
+    }
+
+    function renderPlayerQuestion() {
+      playerAnswered = false;
+      const q = playerOrder[currentPlayerIndex];
+      const total = playerOrder.length;
+      themeTag($('player-q-theme'), q);
+      levelTag($('player-q-diff'), q);
+      $('player-progress').textContent = `Question ${currentPlayerIndex + 1} of ${total}`;
+      $('player-counter').textContent = `${currentPlayerIndex + 1} / ${total}`;
+      $('player-progress-bar').style.width = `${(currentPlayerIndex / total) * 100}%`;
+      $('player-q-text').textContent = q.q;
+      $('player-feedback').classList.add('hidden');
+      $('player-next-btn').classList.add('hidden');
+
+      const box = $('player-options');
+      box.innerHTML = '';
+      q.options.forEach((opt, i) => {
+        const b = document.createElement('button');
+        b.className = 'option';
+        b.innerHTML = `<span class="letter">${LETTERS[i]}</span><span>${esc(opt)}</span>`;
+        b.onclick = () => handlePlayerAnswer(i);
+        box.appendChild(b);
+      });
+    }
+
+    function handlePlayerAnswer(idx) {
+      if (playerAnswered) return;
+      playerAnswered = true;
+      const q = playerOrder[currentPlayerIndex];
+      const chosen = q.options[idx];
+      const right = chosen === q.answer;
+
+      playerScores.total++;
+      const lv = playerScores.byLevel[q.level] || (playerScores.byLevel[q.level] = { c: 0, t: 0 });
+      lv.t++;
+      if (right) { playerScores.correct++; lv.c++; }
+
+      [...$('player-options').children].forEach((b, i) => {
+        b.disabled = true;
+        if (q.options[i] === q.answer) b.classList.add('correct');
+        else if (i === idx) b.classList.add('wrong');
+        else b.classList.add('dim');
+      });
+
+      const fb = $('player-feedback');
+      fb.className = `callout ${right ? 'green' : 'red'}`;
+      $('player-feedback-emoji').textContent = right ? '✅' : '❌';
+      $('player-feedback-title').textContent = right ? 'Correct!' : `Not quite — it's ${q.answer}`;
+      $('player-feedback-text').textContent = q.exp;
+      $('player-feedback-ref').textContent = q.ref;
+      $('player-feedback-ref-wrap').style.color = right ? 'var(--green-tx)' : 'var(--red-tx)';
+      fb.style.marginTop = '16px';
+
+      playChime(right ? 'reveal' : 'wrong');
+      updatePlayerScore();
+      $('player-progress-bar').style.width = `${((currentPlayerIndex + 1) / playerOrder.length) * 100}%`;
+      const nb = $('player-next-btn');
+      nb.textContent = currentPlayerIndex === playerOrder.length - 1 ? 'See results 🏁' : 'Next question →';
+      nb.classList.remove('hidden');
+      nb.focus({ preventScroll: true });
+    }
+
+    function nextPlayerQuestion() {
+      if (!playerAnswered) return;
+      if (currentPlayerIndex < playerOrder.length - 1) {
+        currentPlayerIndex++;
+        renderPlayerQuestion();
+      } else {
+        showPlayerResult();
+      }
+    }
+
+    function showPlayerResult() {
+      const { correct, total, byLevel } = playerScores;
+      const pct = total ? Math.round((correct / total) * 100) : 0;
+      $('player-quiz-card').classList.add('hidden');
+      $('player-result').classList.remove('hidden');
+      $('result-score').textContent = `${correct} / ${total}`;
+      $('result-msg').textContent =
+        pct >= 90 ? `${pct}% — Outstanding! A true student of the Scriptures.` :
+        pct >= 70 ? `${pct}% — Great job! You know your Bible well.` :
+        pct >= 50 ? `${pct}% — Good effort. Keep reading and try again!` :
+                    `${pct}% — Every attempt is a chance to learn more.`;
+      $('result-breakdown').innerHTML = LEVELS.map(l => {
+        const s = byLevel[l.id] || { c: 0, t: 0 };
+        return `<div class="cell"><span class="tag c-${l.color}">${l.name}</span><div class="v">${s.c} / ${s.t}</div></div>`;
+      }).join('');
+      playChime('done');
+    }
+
+    // ═════════════════════════ DATABASE ═════════════════════════
+    function renderStats() {
+      const stats = [
+        { label: 'Questions', value: triviaData.length },
+        { label: 'Themes', value: new Set(triviaData.map(d => d.themeId)).size },
+        { label: 'Difficulty levels', value: new Set(triviaData.map(d => d.level)).size },
+        { label: 'Bible books cited', value: new Set(triviaData.flatMap(d => d.ref.split(';').map(r => (r.trim().match(/^(\d\s)?[A-Za-z]+/) || [])[0]).filter(Boolean))).size }
+      ];
+      $('stats').innerHTML = stats.map(s => `<div class="stat"><div class="label">${s.label}</div><div class="value">${s.value}</div></div>`).join('');
+    }
+
+    function renderCharts() {
+      const bar = (label, n, max, color) => `
+        <div class="bar-row">
+          <span class="lbl">${label}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${(n / max) * 100}%; background: var(--${color}-tx)"></div></div>
+          <span class="n">${n}</span>
+        </div>`;
+      const byTheme = THEMES.map(t => ({ t, n: triviaData.filter(d => d.themeId === t.id).length }));
+      const maxT = Math.max(...byTheme.map(x => x.n));
+      $('theme-chart').innerHTML = byTheme.map(({ t, n }) => bar(`${t.emoji} ${esc(t.name)}`, n, maxT, t.color)).join('');
+      const byLevel = LEVELS.map(l => ({ l, n: triviaData.filter(d => d.level === l.id).length }));
+      const maxL = Math.max(...byLevel.map(x => x.n));
+      $('diff-chart').innerHTML = byLevel.map(({ l, n }) => bar(`${l.id} · ${l.name}`, n, maxL, l.color)).join('');
+    }
+
+    function renderDbFilters() {
+      const chips = [{ id: 'all', label: 'All' }, ...THEMES.map(t => ({ id: String(t.id), label: `${t.emoji} ${t.name}` }))];
+      $('db-filters').innerHTML = chips.map(c =>
+        `<button class="chip ${dbThemeFilter === c.id ? 'on' : ''}" onclick="setDbFilter('${c.id}')">${esc(c.label)}</button>`
+      ).join('');
+    }
+    function setDbFilter(id) { dbThemeFilter = id; renderDbFilters(); renderMasterTable(); }
+    function toggleAnswerBlur() {
+      answersBlurred = !answersBlurred;
+      $('answers-toggle').textContent = answersBlurred ? '👁 Show answers' : '👁 Hide answers';
+      renderMasterTable();
+    }
+
+    function renderMasterTable() {
+      const query = $('index-search').value.trim().toLowerCase();
+      const list = triviaData.filter(item =>
+        (dbThemeFilter === 'all' || String(item.themeId) === dbThemeFilter) &&
+        (!query || [item.q, item.answer, item.ref, item.theme, item.exp].some(s => s.toLowerCase().includes(query)))
+      );
+      $('master-table-body').innerHTML = list.length ? list.map(item => {
+        const t = themeOf(item.themeId), l = levelOf(item.level);
+        return `<tr>
+          <td class="num">${item.id}</td>
+          <td class="q">${esc(item.q)}</td>
+          <td><span class="tag c-${t.color}">${esc(t.name)}</span></td>
+          <td><span class="tag c-${l.color}">${l.name}</span></td>
+          <td class="ans"><span class="${answersBlurred ? 'blurred' : ''}">${esc(item.answer)}</span></td>
+          <td class="ref">${esc(item.ref)}</td>
+        </tr>`;
+      }).join('') : `<tr><td colspan="6" class="muted" style="padding:24px;text-align:center">No results</td></tr>`;
+      $('db-count').textContent = `COUNT ${list.length}`;
+    }
+
+    // ═════════════════════════ KEYBOARD ═════════════════════════
+    document.addEventListener('keydown', e => {
+      const tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'select' || tag === 'textarea' || e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (currentView === 'host') {
+        if (e.key === 'ArrowRight') { nextHostQuestion(); e.preventDefault(); }
+        else if (e.key === 'ArrowLeft') { prevHostQuestion(); e.preventDefault(); }
+        else if (e.key === ' ') { toggleHostAnswer(); e.preventDefault(); }
+        else if (e.key.toLowerCase() === 'o') toggleHostOptions();
+        else if (e.key.toLowerCase() === 't') startTimer(30);
+        else if (e.key.toLowerCase() === 'p') togglePresent();
+        else if (e.key === 'Escape' && document.body.classList.contains('presenting')) togglePresent();
+        else if (['1', '2', '3'].includes(e.key) && !document.body.classList.contains('presenting')) switchView(['host', 'player', 'index'][+e.key - 1]);
+        return;
+      }
+      if (currentView === 'player' && !$('player-quiz-card').classList.contains('hidden')) {
+        if (!playerAnswered && ['1', '2', '3', '4'].includes(e.key)) { handlePlayerAnswer(+e.key - 1); return; }
+        if (playerAnswered && (e.key === 'Enter' || e.key === 'ArrowRight')) { nextPlayerQuestion(); e.preventDefault(); return; }
+        return;
+      }
+      if (['1', '2', '3'].includes(e.key)) switchView(['host', 'player', 'index'][+e.key - 1]);
+    });
+
+    // ═════════════════════════ INIT ═════════════════════════
+    load();
+    renderSidebarThemes();
+    populateFilters();
+    renderScoreboard();
+    renderHostQuestion();
+    restartPlayer(false);
+    renderStats();
+    renderCharts();
+    renderDbFilters();
+    renderMasterTable();
+  </script>
+</body>
+</html>
